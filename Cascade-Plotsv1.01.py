@@ -297,6 +297,7 @@ def cascade(
         data_2D_den[:,cst.day_of_year_apr1+(365-cst.day_of_year_oct1):] += \
             den_tmp_neg[:,cst.day_of_year_apr1+(365-cst.day_of_year_oct1):]  # zero out precip after Apr 1
         data_2D_den = np.add.accumulate(data_2D_den,1)  # sum precip and make this the denominator
+        np.place(data_2D_den,data_2D_den=0,[0.001])         # a fix of the divide by zero warning in the following line
         data_2D = np.divide(data_2D_num, data_2D_den)  # divide numerator by denominator
         data_2D[:,0:90] = 0.
         data_2D[:,cst.day_of_year_apr1+(365-cst.day_of_year_oct1):] = 0.
