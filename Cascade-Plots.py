@@ -27,7 +27,6 @@
 #  Modified summer 2014 to include metadata with file information,
 #    refining code to be "DRY", importing more metadata and path info
 #    from excel master file
-#  Test edit of code 9-18-2014.  Can delete later.
 
 ########################################################################################
 ########################################################################################
@@ -38,6 +37,8 @@ def cascade(
             file_stats,                 #the name of the stats file (if available)
             title,                      #the title of the graph to be generated
             flood_Q,                    #the level of the flood line
+            file_name_list,             #list of file names
+            data_type_list,             #list of data_types associated with file names
             data_type = 'stream',       #the type of data
             flood_Q_available = False,  #whether the flood level is available
             Display = False,            #whether the graph is to be displayed(True) or saved as a PNG file(False)
@@ -94,6 +95,23 @@ def cascade(
         if not SI: data_yr = data_yr/cst.cfs_to_m3
         graph_name = file_model_csv[:-4] + '_inflow'
         plot_structure = '4 by 2'
+    elif data_type == 'tot_damin':
+        time = data_v[:,0]
+        data_yr = np.zeros_like(data_v[:,3])
+        file_number = -1
+        for data_type_check in data_type_list:
+            file_number += 1
+            if data_type_check == 'damin' and \
+               're-regulating' not in file_name_list[file_number] and \
+               'Foster' not in file_name_list[file_number] and \
+               'Lookout' not in file_name_list[file_number]:
+                data_tmp = np.array(np.genfromtxt(cst.path_data + 
+                   file_name_list[file_number]
+                   , delimiter=',',skip_header=1)) # Read csv file
+                data_yr = np.add(data_yr, data_tmp[:,3])
+        if not SI: data_yr = data_yr/cst.cfs_to_m3
+        graph_name = file_model_csv[:-4] + '_tot_dam_inflow'
+        plot_structure = '4 by 2'
     elif data_type == 'damoutWdup':   # This is a dam file with duplicate entries that must be skipped
         time = data_v[0::2,0]
         data_yr = data_v[0::2,4]
@@ -105,6 +123,23 @@ def cascade(
         data_yr = data_v[:,4]
         if not SI: data_yr = data_yr/cst.cfs_to_m3
         graph_name = file_model_csv[:-4] + '_outflow'
+        plot_structure = '4 by 2'
+    elif data_type == 'tot_damout':
+        time = data_v[:,0]
+        data_yr = np.zeros_like(data_v[:,4])
+        file_number = -1
+        for data_type_check in data_type_list:
+            file_number += 1
+            if data_type_check == 'damin' and \
+               're-regulating' not in file_name_list[file_number] and \
+               'Green Peter' not in file_name_list[file_number] and \
+               'Hills' not in file_name_list[file_number]:
+                data_tmp = np.array(np.genfromtxt(cst.path_data + 
+                   file_name_list[file_number]
+                   , delimiter=',',skip_header=1)) # Read csv file
+                data_yr = np.add(data_yr, data_tmp[:,4])
+        if not SI: data_yr = data_yr/cst.cfs_to_m3
+        graph_name = file_model_csv[:-4] + '_tot_dam_outflow'
         plot_structure = '4 by 2'
     elif data_type == 'precipitation' or\
          data_type == 'snow' or\
@@ -278,7 +313,9 @@ def cascade(
        data_type == 'daminWdup' or \
        data_type == 'damoutWdup' or \
        data_type == 'damin' or \
-       data_type == 'damout':
+       data_type == 'damout' or \
+       data_type == 'tot_damin' or \
+       data_type == 'tot_damout':
 
         Q_max = [np.amax(data_2D[i,:]) for i in range(num_water_yrs)]  # max discharge
         extra = np.median(Q_max[-9:])
@@ -645,7 +682,9 @@ def cascade(
        data_type == 'daminWdup' or \
        data_type == 'damoutWdup' or \
        data_type == 'damin' or \
-       data_type == 'damout':
+       data_type == 'damout' or \
+       data_type == 'tot_damin' or \
+       data_type == 'tot_damout':
 
         plt.xlabel('$Min \, Q$', fontsize = 14)
         
@@ -712,7 +751,9 @@ def cascade(
            data_type == 'daminWdup' or \
            data_type == 'damoutWdup' or \
            data_type == 'damin' or \
-           data_type == 'damout':
+           data_type == 'damout' or \
+           data_type == 'tot_damin' or \
+           data_type == 'tot_damout':
 
             if SI:
                 plt.xlabel('$Max \, Q$', fontsize = 14)
@@ -747,7 +788,9 @@ def cascade(
        data_type == 'daminWdup' or \
        data_type == 'damoutWdup' or \
        data_type == 'damin' or \
-       data_type == 'damout':
+       data_type == 'damout' or \
+       data_type == 'tot_damin' or \
+       data_type == 'tot_damout':
         
         ax5.plot(data_set_rhs_3, range(start_year,end_year), color="0.35", lw=1.5)
         if SI:
@@ -1037,6 +1080,8 @@ for plot_number in range(total_number_of_plots):
                 file_stats[plot_number],
                 title[plot_number],
                 flood_Q[plot_number],
+                file_name_list,
+                list(data_type_v),
                 Display = Display_v[plot_number],
                 data_type = data_type_v[plot_number],
                 flood_Q_available = flood_Q_available_v[plot_number],
