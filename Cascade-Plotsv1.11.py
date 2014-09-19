@@ -164,7 +164,7 @@ def cascade(
                 data_yr += data_tmp[:,1]
                 stats_name_tmp = xlrd.open_workbook(cst.path_data + stats_list[current_number])
                 stats_tmp = np.roll(np.array(stats_name_tmp.sheet_by_index(0).col_values(1)[1:]),-cst.day_of_year_oct1)
-                if not SI: stats_tmp = stats_tmp/cst.cfs_to_m3
+                stats_tmp = stats_tmp/cst.cfs_to_m3
                 creek_stat_data += stats_tmp
             current_number += 1
         mean_Q = creek_stat_data
