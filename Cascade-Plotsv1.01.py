@@ -85,12 +85,6 @@ def cascade(
         if not SI: data_yr = data_yr/cst.cfs_to_m3
         graph_name = file_model_csv[:-4]
         plot_structure = '4 by 2'
-    elif data_type == 'daminWdup':   # This is a dam file with duplicate entries that must be skipped
-        time = data_v[0::2,0]
-        data_yr = data_v[0::2,3]
-        if not SI: data_yr = data_yr/cst.cfs_to_m3
-        graph_name = file_model_csv[:-4] + '_inflow'
-        plot_structure = '4 by 2'
     elif data_type == 'damin':
         time = data_v[:,0]
         data_yr = data_v[:,3]
@@ -114,11 +108,34 @@ def cascade(
         if not SI: data_yr = data_yr/cst.cfs_to_m3
         graph_name = file_model_csv[:-4] + '_tot_dam_inflow'
         plot_structure = '4 by 2'
-    elif data_type == 'damoutWdup':   # This is a dam file with duplicate entries that must be skipped
-        time = data_v[0::2,0]
-        data_yr = data_v[0::2,4]
+    elif data_type == 'tot_damdiff':
+        time = data_v[:,0]
+        data_yr = np.zeros_like(data_v[:,3])
+        file_number = -1
+        for data_type_check in data_type_list:
+            file_number += 1
+            if data_type_check == 'damin' and \
+               're-regulating' not in file_name_list[file_number] and \
+               'Foster' not in file_name_list[file_number] and \
+               'Lookout' not in file_name_list[file_number]:
+                data_tmp = np.array(np.genfromtxt(cst.path_data + 
+                   file_name_list[file_number]
+                   , delimiter=',',skip_header=1)) # Read csv file
+                data_yr = np.add(data_yr, data_tmp[:,3])  #Inflows
+        data_yr_tmp = np.zeros_like(data_v[:,4])
+        file_number = -1
+        for data_type_check in data_type_list:
+            file_number += 1
+            if data_type_check == 'damout' and \
+               're-regulating' not in file_name_list[file_number] and \
+               'Green Peter' not in file_name_list[file_number] and \
+               'Hills' not in file_name_list[file_number]:
+                data_tmp = np.array(np.genfromtxt(cst.path_data + 
+                   file_name_list[file_number]
+                   , delimiter=',',skip_header=1)) # Read csv file
+                data_yr_tmp = np.add(data_yr_tmp, data_tmp[:,4])  #Outflows
         if not SI: data_yr = data_yr/cst.cfs_to_m3
-        graph_name = file_model_csv[:-4] + '_outflow'
+        graph_name = file_model_csv[:-4] + '_tot_dam_outflow_minus_inflow'
         plot_structure = '4 by 2'
     elif data_type == 'damout':
         time = data_v[:,0]
@@ -162,7 +179,7 @@ def cascade(
                 data_tmp = np.array(np.genfromtxt(cst.path_data+file_name_check,delimiter=",",skip_header=1))   #read the file
                 if not SI: data_tmp[:,1] = data_tmp[:,1]/cst.cfs_to_m3
                 data_yr += data_tmp[:,1]
-                stats_name_tmp = xlrd.open_workbook(cst.path_data + stats_list[current_number])
+                stats_name_tmp = xlrd.open_workbook(cst.path_auxilliary_files + stats_list[current_number])
                 stats_tmp = np.roll(np.array(stats_name_tmp.sheet_by_index(0).col_values(1)[1:]),-cst.day_of_year_oct1)
                 stats_tmp = stats_tmp*cst.cfs_to_m3
                 creek_stat_data += stats_tmp
@@ -291,6 +308,7 @@ def cascade(
     time = time[cst.day_of_year_oct1 - 1:] # water year
 #    times = time[cst.day_of_year_oct1 - 1:] # water year
     data_yr = data_yr[cst.day_of_year_oct1:-(365-cst.day_of_year_oct1)] # water year
+    data_yr_tmp = data_yr_tmp[cst.day_of_year_oct1:-(365-cst.day_of_year_oct1)] # water year
     data_length = len(time)
     num_water_yrs = len(time)/365
     start_year = 2011
@@ -329,6 +347,13 @@ def cascade(
         data_2D = np.divide(data_2D_num, data_2D_den)  # divide numerator by denominator
         data_2D[:,0:90] = 0.
         data_2D[:,cst.day_of_year_apr1+(365-cst.day_of_year_oct1):] = 0.
+    elif data_type == 'tot_damdiff':
+        data_2D     = np.reshape(np.array(data_yr    ), (-1,365)) #2D matrix of data in numpy format
+        data_2D_tmp = np.reshape(np.array(data_yr_tmp), (-1,365)) #2D matrix of data in numpy format
+        how_much_outflow_bigger_than_inflow = np.divide(np.sum(data_2D_tmp,1),np.sum(data_2D,1))
+        data_2D = np.subtract(data_2D_tmp,np.multiply(data_2D, how_much_outflow_bigger_than_inflow[:,None]))
+        plot_lower_bound = np.percentile(data_2D,5)
+        plot_upper_bound = np.percentile(data_2D,97.5)
     else:
         data_2D = np.reshape(np.array(data_yr), (-1,365)) #2D matrix of data in numpy format
     data_2D_clipped = np.empty_like(data_2D)
@@ -346,6 +371,7 @@ def cascade(
        data_type == 'damout' or \
        data_type == 'tot_damin' or \
        data_type == 'tot_damout' or\
+       data_type == 'tot_damdiff' or\
        data_type == 'creek_sums':
 
         Q_max = [np.amax(data_2D[i,:]) for i in range(num_water_yrs)]  # max discharge
@@ -364,6 +390,13 @@ def cascade(
         else:
             ylabel2 = '$Daily \, Q$ [cfs]'
             ylabel4 = '$Discharge (Q)\,$ [cfs]'
+        if data_type == 'tot_damdiff':
+            if SI:
+                ylabel2 = '$Daily \, \Delta Q$ [m$^{\t{3}}$/s]'
+                ylabel4 = '$\Delta Discharge (\Delta Q)\,$ [m$^{\t{3}}$/s]'
+            else:
+                ylabel2 = '$Daily \, \Delta Q$ [cfs]'
+                ylabel4 = '$Discharge (\Delta Q)\,$ [cfs]'
                   
     elif data_type == 'snow':
         swe_apr1 = data_yr[cst.day_of_year_apr1+(365-cst.day_of_year_oct1):data_length:365]
@@ -716,9 +749,12 @@ def cascade(
        data_type == 'damout' or \
        data_type == 'tot_damin' or \
        data_type == 'tot_damout' or\
+       data_type == 'tot_damdiff' or\
        data_type == 'creek_sums':
 
         plt.xlabel('$Min \, Q$', fontsize = 14)
+        if data_type == 'tot_damdiff':
+            plt.xlabel('$Min \, \Delta Q$', fontsize = 14)
         
     elif data_type == 'snow':
         plt.xlabel('$Apr \, 1\, SWE$', fontsize = 14)
@@ -786,18 +822,15 @@ def cascade(
            data_type == 'damout' or \
            data_type == 'tot_damin' or \
            data_type == 'tot_damout' or\
+           data_type == 'tot_damdiff' or\
            data_type == 'creek_sums':
 
-            if SI:
-                plt.xlabel('$Max \, Q$', fontsize = 14)
-            else:
-                plt.xlabel('$Max \, Q$', fontsize = 14)
+            plt.xlabel('$Max \, Q$', fontsize = 14)
+            if data_type == 'tot_damdiff':
+                plt.xlabel('$Max \, \Delta Q$', fontsize = 14)
             
         elif data_type == 'temperature':
-            if SI:
-                plt.xlabel('$Max \, T$', fontsize = 14)
-            else:
-                plt.xlabel('$Max \, T$', fontsize = 14)
+            plt.xlabel('$Max \, T$', fontsize = 14)
         elif data_type == 'tot_extract':
             plt.xlabel('$Max \,$', fontsize = 14)
         elif data_type == 'aridity':
@@ -824,13 +857,14 @@ def cascade(
        data_type == 'damout' or \
        data_type == 'tot_damin' or \
        data_type == 'tot_damout' or\
+       data_type == 'tot_damdiff' or\
        data_type == 'creek_sums':
         
         ax5.plot(data_set_rhs_3, range(start_year,end_year), color="0.35", lw=1.5)
         if SI:
-            plt.xlabel('$Avg \, Q$ [m$^{\t{3}}$/s]', fontsize = 14)
+            plt.xlabel('$Avg \, \Delta Q$ [m$^{\t{3}}$/s]', fontsize = 14)
         else:
-            plt.xlabel('$Avg \, Q$ [cfs]', fontsize = 14)
+            plt.xlabel('$Avg \, \Delta Q$ [cfs]', fontsize = 14)
         
     elif data_type == 'temperature':
         
