@@ -28,6 +28,7 @@
 #    refining code to be "DRY", importing more metadata and path info
 #    from excel master file
 
+
 ########################################################################################
 ########################################################################################
 ########################################################################################
@@ -35,6 +36,7 @@
 def cascade(
             file_model_csv,             #the name of the reference file
             file_stats,                 #the name of the stats file (if available)
+            stats_list,                 #a list of the stats files
             title,                      #the title of the graph to be generated
             flood_Q,                    #the level of the flood line
             file_name_list,             #list of file names
@@ -138,8 +140,35 @@ def cascade(
                    file_name_list[file_number]
                    , delimiter=',',skip_header=1)) # Read csv file
                 data_yr = np.add(data_yr, data_tmp[:,4])
-        if not SI: data_yr = data_yr/cst.cfs_to_m3
+        if not SI: data_yr = data_yr*cst.cfs_to_m3
         graph_name = file_model_csv[:-4] + '_tot_dam_outflow'
+        plot_structure = '4 by 2'
+    elif data_type == 'creek_sums':
+        time = data_v[:,0]
+        data_yr = data_v[:,1]
+        current_number = 0
+        creek_stats = xlrd.open_workbook(file_stats_w_path)
+        creek_stat_data = np.roll(np.array(creek_stats.sheet_by_index(0).col_values(1)[1:]),-cst.day_of_year_oct1)
+        for file_name_check in file_name_list:
+            if 'Luckiamute' in file_name_check\
+            or 'Marys' in file_name_check\
+            or 'Mckenzie_Belknap' in file_name_check\
+            or 'Mohawk' in file_name_check\
+            or 'Molalla_at_Canby' in file_name_check\
+            or 'Pudding_at_Aurora' in file_name_check\
+            or 'Silver_at_Silverton' in file_name_check\
+            or 'Tualatin' in file_name_check\
+            or 'Johnson' in file_name_check:
+                data_tmp = np.array(np.genfromtxt(cst.path_data+file_name_check,delimiter=",",skip_header=1))   #read the file
+                if not SI: data_tmp[:,1] = data_tmp[:,1]/cst.cfs_to_m3
+                data_yr += data_tmp[:,1]
+                stats_name_tmp = xlrd.open_workbook(cst.path_data + stats_list[current_number])
+                stats_tmp = np.roll(np.array(stats_name_tmp.sheet_by_index(0).col_values(1)[1:]),-cst.day_of_year_oct1)
+                stats_tmp = stats_tmp*cst.cfs_to_m3
+                creek_stat_data += stats_tmp
+            current_number += 1
+        mean_Q = creek_stat_data
+        graph_name = file_model_csv[:-4] + '_creek_sums'
         plot_structure = '4 by 2'
     elif data_type == 'precipitation' or\
          data_type == 'snow' or\
@@ -274,7 +303,7 @@ def cascade(
         plot_lower_bound = np.percentile(data_yr,5)
         plot_upper_bound = np.percentile(data_yr,97.5)
 
-    if stats_available:
+    if stats_available and data_type != 'creek_sums':
         stats = xlrd.open_workbook(file_stats_w_path)
         mean_Q = np.roll(np.array(stats.sheet_by_index(0).col_values(1)[1:]),
                      -cst.day_of_year_oct1)
@@ -296,6 +325,7 @@ def cascade(
         data_2D_den[:,cst.day_of_year_apr1+(365-cst.day_of_year_oct1):] += \
             den_tmp_neg[:,cst.day_of_year_apr1+(365-cst.day_of_year_oct1):]  # zero out precip after Apr 1
         data_2D_den = np.add.accumulate(data_2D_den,1)  # sum precip and make this the denominator
+        np.place(data_2D_den,data_2D_den==0,[0.001])         # a fix of the divide by zero warning in the following line
         data_2D = np.divide(data_2D_num, data_2D_den)  # divide numerator by denominator
         data_2D[:,0:90] = 0.
         data_2D[:,cst.day_of_year_apr1+(365-cst.day_of_year_oct1):] = 0.
@@ -315,7 +345,8 @@ def cascade(
        data_type == 'damin' or \
        data_type == 'damout' or \
        data_type == 'tot_damin' or \
-       data_type == 'tot_damout':
+       data_type == 'tot_damout' or\
+       data_type == 'creek_sums':
 
         Q_max = [np.amax(data_2D[i,:]) for i in range(num_water_yrs)]  # max discharge
         extra = np.median(Q_max[-9:])
@@ -684,7 +715,8 @@ def cascade(
        data_type == 'damin' or \
        data_type == 'damout' or \
        data_type == 'tot_damin' or \
-       data_type == 'tot_damout':
+       data_type == 'tot_damout' or\
+       data_type == 'creek_sums':
 
         plt.xlabel('$Min \, Q$', fontsize = 14)
         
@@ -753,7 +785,8 @@ def cascade(
            data_type == 'damin' or \
            data_type == 'damout' or \
            data_type == 'tot_damin' or \
-           data_type == 'tot_damout':
+           data_type == 'tot_damout' or\
+           data_type == 'creek_sums':
 
             if SI:
                 plt.xlabel('$Max \, Q$', fontsize = 14)
@@ -790,7 +823,8 @@ def cascade(
        data_type == 'damin' or \
        data_type == 'damout' or \
        data_type == 'tot_damin' or \
-       data_type == 'tot_damout':
+       data_type == 'tot_damout' or\
+       data_type == 'creek_sums':
         
         ax5.plot(data_set_rhs_3, range(start_year,end_year), color="0.35", lw=1.5)
         if SI:
@@ -1078,6 +1112,7 @@ for plot_number in range(total_number_of_plots):
             cascade(
                 file_name_ToBeUsed,
                 file_stats[plot_number],
+                list(file_stats),
                 title[plot_number],
                 flood_Q[plot_number],
                 file_name_list,
