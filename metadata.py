@@ -15,7 +15,7 @@ def define_model_run(name):
     else:
         Case = str(name)
         
-    if "Ref_Model_and" in Case:
+    if "Ref_Run0" in Case:
         model = 'Reference (MIROC)'
     elif "LowClim" in Case:  
         model = 'Low Climate Change (GFDL)'

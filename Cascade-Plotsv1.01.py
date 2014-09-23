@@ -308,7 +308,7 @@ def cascade(
     time = time[cst.day_of_year_oct1 - 1:] # water year
 #    times = time[cst.day_of_year_oct1 - 1:] # water year
     data_yr = data_yr[cst.day_of_year_oct1:-(365-cst.day_of_year_oct1)] # water year
-    data_yr_tmp = data_yr_tmp[cst.day_of_year_oct1:-(365-cst.day_of_year_oct1)] # water year
+##    data_yr_tmp = data_yr_tmp[cst.day_of_year_oct1:-(365-cst.day_of_year_oct1)] # water year
     data_length = len(time)
     num_water_yrs = len(time)/365
     start_year = 2011
@@ -1135,25 +1135,26 @@ total_number_of_plots = len(file_model_csv)
 
 ## If you only want to plot the scenario indicated in the master file, 
 ##   uncomment this line:
-AltScenarioList = [str(file_model_csv[0]).partition("_")[0]]  #List of length 1
+##AltScenarioList = [str(file_model_csv[0]).partition("_")[0]]  #List of length 1
 ## DO NOT DELETE THE TEXT ABOVE HERE ^^^^^
 
 # Make the plots.
 for plot_number in range(total_number_of_plots):
     if ToBePlotted[plot_number]:
-        for AltScenario in AltScenarioList:
-            file_name_ToBeUsed = file_name_list[plot_number].replace('Ref', AltScenario)
-            cascade(
-                file_name_ToBeUsed,
-                file_stats[plot_number],
-                list(file_stats),
-                title[plot_number],
-                flood_Q[plot_number],
-                file_name_list,
-                list(data_type_v),
-                Display = Display_v[plot_number],
-                data_type = data_type_v[plot_number],
-                flood_Q_available = flood_Q_available_v[plot_number],
-                stats_available = stats_available_v[plot_number],
-                SI = SI_v[plot_number]
-                )
+##        for AltScenario in AltScenarioList:
+##            file_name_ToBeUsed = file_name_list[plot_number].replace('Ref', AltScenario)
+        cascade(
+##                file_name_ToBeUsed,
+            file_name_list[plot_number],
+            file_stats[plot_number],
+            list(file_stats),
+            title[plot_number],
+            flood_Q[plot_number],
+            file_name_list,
+            list(data_type_v),
+            Display = Display_v[plot_number],
+            data_type = data_type_v[plot_number],
+            flood_Q_available = flood_Q_available_v[plot_number],
+            stats_available = stats_available_v[plot_number],
+            SI = SI_v[plot_number]
+            )
